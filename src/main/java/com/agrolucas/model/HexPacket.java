@@ -5,8 +5,6 @@ public class HexPacket {
 
     public HexPacket(String hex) {
         hex = hex.replaceAll("\\s+", ""); // allow spaces like "C4 3D 54"
-        if (hex.length() % 2 != 0)
-            throw new IllegalArgumentException("Hex string must have even length");
 
         this.bytes = new byte[hex.length() / 2];
         for (int i = 0; i < bytes.length; i++) {
