@@ -29,4 +29,9 @@ public class MessageType {
     public void setFields(List<Field> fields) {
         this.fields = fields;
     }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }

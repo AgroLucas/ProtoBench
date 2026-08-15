@@ -1,0 +1,4 @@
+.selected-column {
+    -fx-font-weight: bold;
+    -fx-text-fill: #2a6df5;
+}
