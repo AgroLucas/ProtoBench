@@ -7,6 +7,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
+import javafx.util.StringConverter;
 
 import java.util.ArrayList;
 
@@ -28,6 +29,30 @@ public class SelectionBar extends HBox {
         messageTypeComboBox = new ComboBox<>(state.getMessageTypes());
         messageTypeComboBox.setEditable(true);
         messageTypeComboBox.setPromptText("Message type");
+        messageTypeComboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty()); // defaults to whichever MessageType is currently viewed, see CaptureState's default MessageType
+
+        // An editable ComboBox<T> needs a StringConverter for any T that isn't String itself
+        messageTypeComboBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(MessageType messageType) {
+                return messageType == null ? "" : messageType.getName();
+            }
+
+            @Override
+            public MessageType fromString(String name) {
+                if (name == null || name.isBlank())
+                    return null;
+
+                return state.getMessageTypes().stream()
+                        .filter(mt -> mt.getName().equals(name))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            MessageType newMessageType = new MessageType(name, new ArrayList<>());
+                            state.getMessageTypes().add(newMessageType);
+                            return newMessageType;
+                        });
+            }
+        });
 
         fieldNameTextField.setPromptText("Field name");
 
@@ -70,19 +95,10 @@ public class SelectionBar extends HBox {
      */
     private void createField() {
         String fieldName = fieldNameTextField.getText();
-        String messageTypeName = messageTypeComboBox.getEditor().getText();
+        MessageType messageType = messageTypeComboBox.getValue();
 
-        if (fieldName == null || fieldName.isBlank() || messageTypeName == null || messageTypeName.isBlank() || state.isSelectionEmpty())
+        if (fieldName == null || fieldName.isBlank() || messageType == null || state.isSelectionEmpty())
             return;
-
-        MessageType messageType = state.getMessageTypes().stream()
-                .filter(mt -> mt.getName().equals(messageTypeName))
-                .findFirst()
-                .orElseGet(() -> {
-                    MessageType newMessageType = new MessageType(messageTypeName, new ArrayList<>());
-                    state.getMessageTypes().add(newMessageType);
-                    return newMessageType;
-                });
 
         int bitsPerColumn = state.bitsPerColumn();
         int startBit = state.getSelectionStart() * bitsPerColumn;
@@ -90,10 +106,10 @@ public class SelectionBar extends HBox {
 
         Field field = new Field(fieldName, startBit, endBit, state.getDisplayMode());
         state.addField(messageType, field);
-        state.viewedMessageTypeProperty().set(messageType);
+        state.viewedMessageTypeProperty().set(messageType); // switches the view to a newly created MessageType, a no-op otherwise
 
         state.clearSelection();
         fieldNameTextField.setText(null);
-        messageTypeComboBox.getEditor().clear();
+        // the message type combo is intentionally left as-is, so the next field defaults to the same MessageType
     }
 }

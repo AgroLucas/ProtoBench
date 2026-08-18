@@ -18,8 +18,8 @@ import java.util.List;
 
 /**
  * Displays the following:
- *  - the view selection
- *  - the field add section in case data is selected
+ *  - the view selection (hex / bin / ...)
+ *  - the 'field add' section in case data is selected
  *  - every Capture in a Grid:
  *      The first column of the Grid (starting from row 1) contains the Delete Buttons.
  *      The second column of the Grid (starting from row 1) contains the Capture name.
@@ -32,6 +32,7 @@ public class CaptureGridPane extends VBox {
     private final GridPane grid = new GridPane();
     // Contains for each column, the label of the column header and all the data label of the column
     // [ [Label("cap 1"), Label("A"), Label("B")], [Label("cap 2"), Label("C"), Label("D")], ... ]
+    // This is used to update the style of the column when it is being selected
     private final List<List<Label>> dataColumnLabels = new ArrayList<>();
     private int selectionAnchorIndex = -1; // the column where a drag-select started
 
@@ -52,7 +53,7 @@ public class CaptureGridPane extends VBox {
 
         ScrollPane scrollPane = new ScrollPane(grid);
         scrollPane.setFitToWidth(true);
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Is the most important view of the app, so give priority
 
         state.getCaptures().addListener((ListChangeListener<Capture>) change -> rebuildGrid());
         state.displayModeProperty().addListener((obs, oldVal, newVal) -> rebuildGrid());

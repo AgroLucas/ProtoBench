@@ -11,6 +11,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -30,8 +31,11 @@ public class CaptureState {
     private final IntegerProperty selectionEnd = new SimpleIntegerProperty(-1);
 
     public CaptureState() {
-        // fires no matter how the value changes: direct set(), bindBidirectional from a ComboBox, ...
         viewedMessageType.addListener((obs, oldVal, newVal) -> refreshViewedFields());
+
+        MessageType defaultMessageType = new MessageType("Default", new ArrayList<>());
+        messageTypes.add(defaultMessageType);
+        viewedMessageType.set(defaultMessageType);
     }
 
     public ObservableList<Capture> getCaptures() {
