@@ -1,4 +1,466 @@
-.selected-column {
+/* ============================================================
+   ProtoBench — dark theme
+   ============================================================ */
+
+/* ---------- Palette (looked-up colors, inherited by every node) ---------- */
+.root {
+    -pb-bg:            #0d1117;
+    -pb-surface:       #151b23;
+    -pb-surface-2:     #1b2230;
+    -pb-surface-3:     #232c3b;
+    -pb-border:        #2a3441;
+    -pb-border-soft:   #1f2733;
+    -pb-text:          #e6edf3;
+    -pb-text-dim:      #93a1b1;
+    -pb-text-muted:    #66758a;
+    -pb-accent:        #2dd4a7;
+    -pb-accent-hover:  #4ae3bc;
+    -pb-accent-press:  #1fae88;
+    -pb-accent-soft:   #123a30;
+    -pb-danger:        #f85149;
+    -pb-danger-soft:   #3a1d1f;
+
+    -fx-background-color: -pb-bg;
+    -fx-font-family: "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.label {
+    -fx-text-fill: -pb-text;
+}
+
+
+/* ---------- App header ---------- */
+.app-eyebrow {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 11px;
+    -fx-text-fill: -pb-accent;
+}
+
+.app-title {
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
-    -fx-text-fill: #2a6df5;
+    -fx-text-fill: -pb-text;
+}
+
+.app-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: -pb-text-muted;
+}
+
+.header-rule {
+    -fx-pref-height: 1px;
+    -fx-min-height: 1px;
+    -fx-background-color: linear-gradient(to right, -pb-accent, -pb-border 45%, transparent);
+}
+
+
+/* ---------- Cards ---------- */
+.card {
+    -fx-background-color: -pb-surface;
+    -fx-background-radius: 10px;
+    -fx-border-color: -pb-border-soft;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 16px 18px 18px 18px;
+}
+
+.card-title {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pb-text-dim;
+}
+
+.card-hint {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -pb-text-muted;
+}
+
+
+/* ---------- Text fields ---------- */
+.text-field {
+    -fx-background-color: -pb-bg;
+    -fx-background-radius: 7px;
+    -fx-border-color: -pb-border;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+    -fx-text-fill: -pb-text;
+    -fx-prompt-text-fill: -pb-text-muted;
+    -fx-padding: 8px 11px;
+    -fx-highlight-fill: -pb-accent-soft;
+    -fx-highlight-text-fill: -pb-text;
+}
+
+.text-field:focused {
+    -fx-border-color: -pb-accent;
+}
+
+.mono-field {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+}
+
+
+/* ---------- Buttons ---------- */
+.button {
+    -fx-background-color: -pb-surface-2;
+    -fx-background-radius: 7px;
+    -fx-border-color: -pb-border;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+    -fx-text-fill: -pb-text;
+    -fx-padding: 8px 15px;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: -pb-surface-3;
+    -fx-border-color: #3a4757;
+}
+
+.button:pressed {
+    -fx-background-color: -pb-surface;
+}
+
+/* primary / call-to-action */
+.button.accent {
+    -fx-background-color: -pb-accent;
+    -fx-border-color: -pb-accent;
+    -fx-text-fill: #06231b;
+    -fx-font-weight: bold;
+}
+
+.button.accent:hover {
+    -fx-background-color: -pb-accent-hover;
+    -fx-border-color: -pb-accent-hover;
+}
+
+.button.accent:pressed {
+    -fx-background-color: -pb-accent-press;
+    -fx-border-color: -pb-accent-press;
+}
+
+.button.accent:disabled {
+    -fx-opacity: 0.4;
+}
+
+/* quiet / secondary */
+.button.ghost {
+    -fx-background-color: transparent;
+    -fx-border-color: -pb-border;
+    -fx-text-fill: -pb-text-dim;
+}
+
+.button.ghost:hover {
+    -fx-background-color: -pb-surface-2;
+    -fx-text-fill: -pb-text;
+}
+
+/* destructive */
+.button.danger {
+    -fx-background-color: transparent;
+    -fx-border-color: #4a2b2b;
+    -fx-text-fill: #ef8a86;
+}
+
+.button.danger:hover {
+    -fx-background-color: -pb-danger-soft;
+    -fx-border-color: -pb-danger;
+    -fx-text-fill: #ffb3ae;
+}
+
+/* small square "x" on each capture row */
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -pb-text-muted;
+    -fx-font-size: 13px;
+    -fx-padding: 1px 6px;
+    -fx-cursor: hand;
+}
+
+.icon-button:hover {
+    -fx-background-color: -pb-danger-soft;
+    -fx-text-fill: #ff9a95;
+    -fx-border-color: transparent;
+}
+
+
+/* ---------- ComboBox ---------- */
+.combo-box {
+    -fx-background-color: -pb-bg;
+    -fx-background-radius: 7px;
+    -fx-border-color: -pb-border;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+    -fx-padding: 1px;
+    -fx-cursor: hand;
+}
+
+.combo-box:hover {
+    -fx-border-color: #3a4757;
+}
+
+.combo-box:focused {
+    -fx-border-color: -pb-accent;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -pb-text;
+    -fx-padding: 6px 9px;
+}
+
+.combo-box .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6px 9px;
+}
+
+.combo-box .arrow,
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.combo-box .arrow {
+    -fx-background-color: -pb-text-dim;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -pb-surface-2;
+    -fx-background-radius: 8px;
+    -fx-border-color: -pb-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 4px;
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -pb-text;
+    -fx-padding: 7px 10px;
+    -fx-background-radius: 5px;
+}
+
+.combo-box-popup .list-view .list-cell:filled:hover {
+    -fx-background-color: -pb-surface-3;
+}
+
+.combo-box-popup .list-view .list-cell:filled:selected {
+    -fx-background-color: -pb-accent-soft;
+    -fx-text-fill: -pb-accent;
+}
+
+
+/* ---------- Selection bar (appears when columns are selected) ---------- */
+.selection-bar {
+    -fx-background-color: -pb-surface-2;
+    -fx-background-radius: 8px;
+    -fx-border-color: -pb-accent;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 11px 14px;
+}
+
+.selection-label {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pb-accent;
+}
+
+
+/* ---------- Capture grid ---------- */
+.capture-scroll,
+.capture-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.capture-scroll {
+    -fx-border-color: transparent;
+    -fx-padding: 2px 0 0 0;
+}
+
+.capture-grid {
+    -fx-padding: 2px;
+}
+
+/* the ruler row above the data */
+.col-header {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 10.5px;
+    -fx-text-fill: -pb-text-muted;
+    -fx-min-width: 15px;
+    -fx-alignment: center;
+    -fx-padding: 2px 0 5px 0;
+    -fx-cursor: hand;
+}
+
+.col-header.selected-column {
+    -fx-text-fill: -pb-accent;
+    -fx-font-weight: bold;
+}
+
+/* one character of a packet */
+.data-cell {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 13px;
+    -fx-text-fill: -pb-text;
+    -fx-min-width: 15px;
+    -fx-alignment: center;
+    -fx-padding: 3px 0;
+    -fx-background-radius: 3px;
+    -fx-cursor: hand;
+}
+
+.data-cell:hover {
+    -fx-background-color: -pb-surface-3;
+}
+
+.data-cell.selected-column {
+    -fx-background-color: -pb-accent-soft;
+    -fx-text-fill: -pb-accent;
+    -fx-font-weight: bold;
+}
+
+/* last character of each byte, gets a gap after it so bytes read as units */
+.byte-end {
+    -fx-padding: 3px 10px 3px 0;
+}
+
+.col-header.byte-end {
+    -fx-padding: 2px 10px 5px 0;
+}
+
+.capture-name {
+    -fx-font-size: 12.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pb-text;
+    -fx-padding: 0 10px 0 2px;
+}
+
+.capture-size {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 10.5px;
+    -fx-text-fill: -pb-text-muted;
+    -fx-padding: 0 14px 0 0;
+}
+
+.grid-corner-header {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pb-text-muted;
+    -fx-padding: 0 0 5px 2px;
+}
+
+.empty-state {
+    -fx-text-fill: -pb-text-muted;
+    -fx-font-size: 13px;
+    -fx-padding: 26px 10px;
+}
+
+
+/* ---------- TableView (fields) ---------- */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: -pb-border-soft;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 0;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -pb-surface-2;
+    -fx-background-radius: 7px 7px 0 0;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent -pb-border-soft transparent transparent;
+    -fx-size: 33px;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -pb-text-dim;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-alignment: center-left;
+    -fx-padding: 0 0 0 4px;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -pb-border-soft transparent;
+    -fx-table-cell-border-color: transparent;
+    -fx-cell-size: 31px;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: #12181f;
+}
+
+/* the filler rows under the last real row shouldn't get striping or separators */
+.table-view .table-row-cell:empty,
+.table-view .table-row-cell:empty:odd {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.table-view .table-row-cell:hover {
+    -fx-background-color: -pb-surface-2;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: -pb-accent-soft;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: -pb-text;
+    -fx-padding: 0 0 0 4px;
+    -fx-alignment: center-left;
+}
+
+.table-view .table-row-cell:selected .table-cell {
+    -fx-text-fill: -pb-accent;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -pb-text-muted;
+}
+
+
+/* ---------- Scroll bars ---------- */
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 2px;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #313d4d;
+    -fx-background-radius: 6px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #435367;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
+}
+
+.scroll-pane > .corner {
+    -fx-background-color: transparent;
 }

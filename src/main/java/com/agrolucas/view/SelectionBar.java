@@ -2,11 +2,14 @@ package com.agrolucas.view;
 
 import com.agrolucas.model.Field;
 import com.agrolucas.model.MessageType;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.util.StringConverter;
 
 import java.util.ArrayList;
@@ -25,6 +28,10 @@ public class SelectionBar extends HBox {
     public SelectionBar(CaptureState state) {
         super(10);
         this.state = state;
+        getStyleClass().add("selection-bar");
+        setAlignment(Pos.CENTER_LEFT);
+
+        selectionLabel.getStyleClass().add("selection-label");
 
         messageTypeComboBox = new ComboBox<>(state.getMessageTypes());
         messageTypeComboBox.setEditable(true);
@@ -55,14 +62,20 @@ public class SelectionBar extends HBox {
         });
 
         fieldNameTextField.setPromptText("Field name");
+        HBox.setHgrow(fieldNameTextField, Priority.ALWAYS);
 
         Button createFieldButton = new Button("Create field");
+        createFieldButton.getStyleClass().add("accent");
         createFieldButton.setOnAction(e -> createField());
 
         Button cancelButton = new Button("Cancel");
+        cancelButton.getStyleClass().add("ghost");
         cancelButton.setOnAction(e -> state.clearSelection());
 
-        getChildren().addAll(selectionLabel, messageTypeComboBox, fieldNameTextField, createFieldButton, cancelButton);
+        Region spacer = new Region();
+        spacer.setMinWidth(4);
+
+        getChildren().addAll(selectionLabel, spacer, messageTypeComboBox, fieldNameTextField, createFieldButton, cancelButton);
 
         setVisible(false);
         setManaged(false); // fully collapses the space when hidden, setVisible alone would leave a gap
