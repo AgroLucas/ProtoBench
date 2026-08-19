@@ -264,6 +264,35 @@
 }
 
 
+/* ---------- Colour picker ---------- */
+.field-color-picker {
+    -fx-background-color: -pb-bg;
+    -fx-background-radius: 7px;
+    -fx-border-color: -pb-border;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+    -fx-pref-width: 62px;
+    -fx-cursor: hand;
+}
+
+.field-color-picker:hover {
+    -fx-border-color: #3a4757;
+}
+
+.field-color-picker > .color-picker-label > .label {
+    -fx-text-fill: -pb-text;
+}
+
+.field-color-picker .arrow,
+.field-color-picker .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.field-color-picker .arrow {
+    -fx-background-color: -pb-text-dim;
+}
+
+
 /* ---------- Selection bar (appears when columns are selected) ---------- */
 .selection-bar {
     -fx-background-color: -pb-surface-2;
@@ -308,10 +337,8 @@
     -fx-cursor: hand;
 }
 
-.col-header.selected-column {
-    -fx-text-fill: -pb-accent;
-    -fx-font-weight: bold;
-}
+/* the colour of a header, and of the cells below it, is computed in CaptureGridPane: it depends on the
+   field's own colour, which no stylesheet rule can know in advance. Only the fixed metrics live here. */
 
 /* one character of a packet */
 .data-cell {
@@ -322,42 +349,12 @@
     -fx-alignment: center;
     -fx-padding: 3px 0;
     -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
     -fx-cursor: hand;
 }
 
-.data-cell:hover {
-    -fx-background-color: -pb-surface-3;
-}
-
-/* this position does not match the reference capture */
-.data-cell.diff {
-    -fx-background-color: #3d1f22;
-    -fx-border-color: #7d3b3b;
-    -fx-border-radius: 3px;
-    -fx-text-fill: #ff9d96;
-    -fx-font-weight: bold;
-}
-
-/* this capture is shorter than the longest one, nothing to show at this position */
-.data-cell.empty-cell {
-    -fx-text-fill: #3a4552;
-}
-
-.data-cell.selected-column {
-    -fx-background-color: -pb-accent-soft;
-    -fx-border-color: transparent;
-    -fx-text-fill: -pb-accent;
-    -fx-font-weight: bold;
-}
-
-/* a cell that is both selected and differing: the background shows it is part of the selected range,
-   the text and border keep showing that it differs, so selecting a range never hides the differences.
-   Three classes, so this wins over both rules above no matter what order they are declared in. */
-.data-cell.diff.selected-column {
-    -fx-background-color: -pb-accent-soft;
-    -fx-border-color: #7d3b3b;
-    -fx-text-fill: #ff9d96;
-}
+/* the background, text colour and border of a data cell are set from CaptureGridPane, which combines
+   the field colour, the difference from the reference capture, and the selection into one style */
 
 /* last character of each byte, gets a gap after it so bytes read as units */
 .byte-end {

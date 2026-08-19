@@ -3,11 +3,14 @@ package com.agrolucas.view;
 import com.agrolucas.model.Field;
 import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.MessageType;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -136,6 +139,7 @@ public class FieldPane extends VBox {
             if (newStart != null && newStart >= 0 && newStart <= field.getEndPosition())
                 field.setStartPosition(newStart);
             table.refresh(); // also puts the old value back on screen when the entry was rejected
+            state.notifyFieldsChanged(); // the field now covers different columns of the grid
         });
 
         TableColumn<Field, Integer> endColumn = new TableColumn<>("END BIT");
@@ -148,6 +152,7 @@ public class FieldPane extends VBox {
             if (newEnd != null && newEnd >= field.getStartPosition())
                 field.setEndPosition(newEnd);
             table.refresh();
+            state.notifyFieldsChanged(); // the field now covers different columns of the grid
         });
 
         TableColumn<Field, FieldDisplay> displayColumn = new TableColumn<>("DISPLAY");
@@ -158,10 +163,53 @@ public class FieldPane extends VBox {
             if (event.getNewValue() != null)
                 event.getRowValue().setFieldDisplay(event.getNewValue());
             table.refresh();
+            state.notifyFieldsChanged();
         });
 
-        table.getColumns().addAll(nameColumn, startColumn, endColumn, displayColumn);
+        TableColumn<Field, Field> colorColumn = new TableColumn<>("COLOUR");
+        // the whole row is handed to the cell, since the picker has to write straight back to the Field
+        colorColumn.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue()));
+        colorColumn.setCellFactory(column -> new ColorPickerCell());
+        colorColumn.setMaxWidth(120);
+        colorColumn.setSortable(false);
+
+        table.getColumns().addAll(nameColumn, startColumn, endColumn, displayColumn, colorColumn);
         return table;
+    }
+
+    /**
+     * A table cell holding a ColorPicker that writes the chosen colour straight onto its Field.
+     * Unlike the other columns this needs no double-click to edit, the picker is always live,
+     * which also makes each field's colour visible at a glance.
+     */
+    private class ColorPickerCell extends TableCell<Field, Field> {
+
+        private final ColorPicker colorPicker = new ColorPicker();
+
+        private ColorPickerCell() {
+            colorPicker.getStyleClass().add("field-color-picker");
+            colorPicker.setOnAction(event -> {
+                Field field = getItem();
+                if (field == null)
+                    return;
+
+                field.setColor(ColorUtils.toHex(colorPicker.getValue()));
+                state.notifyFieldsChanged(); // repaints the capture grid with the new colour
+            });
+        }
+
+        @Override
+        protected void updateItem(Field field, boolean empty) {
+            super.updateItem(field, empty);
+
+            if (empty || field == null) {
+                setGraphic(null); // recycled cells must be cleared, otherwise pickers show on blank rows
+                return;
+            }
+
+            colorPicker.setValue(ColorUtils.parse(field.getColor()));
+            setGraphic(colorPicker);
+        }
     }
 
     /**

@@ -5,12 +5,15 @@ import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.MessageType;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
 
 /**
  * Display bar that appears above the capture grid only when data columns are selected.
@@ -23,6 +26,7 @@ public class SelectionBar extends HBox {
     private final Label selectionLabel = new Label();
     private final TextField fieldNameTextField = new TextField();
     private final ComboBox<FieldDisplay> fieldDisplayComboBox = new ComboBox<>();
+    private final ColorPicker fieldColorPicker = new ColorPicker();
 
     public SelectionBar(CaptureState state) {
         super(10);
@@ -41,6 +45,11 @@ public class SelectionBar extends HBox {
         fieldDisplayComboBox.getItems().addAll(FieldDisplay.values());
         fieldDisplayComboBox.setValue(state.getDisplayMode());
 
+        // the colour this field is drawn with in the capture grid
+        fieldColorPicker.getStyleClass().add("field-color-picker");
+        fieldColorPicker.setTooltip(new Tooltip("Colour used for this field in the capture grid"));
+        fieldColorPicker.setValue(Color.web(state.nextFieldColor()));
+
         Button createFieldButton = new Button("Create field");
         createFieldButton.getStyleClass().add("accent");
         createFieldButton.setOnAction(e -> createField());
@@ -53,7 +62,7 @@ public class SelectionBar extends HBox {
         spacer.setMinWidth(4);
 
         getChildren().addAll(selectionLabel, spacer, fieldNameTextField,
-                displayLabel, fieldDisplayComboBox, createFieldButton, cancelButton);
+                displayLabel, fieldDisplayComboBox, fieldColorPicker, createFieldButton, cancelButton);
 
         setVisible(false);
         setManaged(false); // fully collapses the space when hidden, setVisible alone would leave a gap
@@ -75,9 +84,12 @@ public class SelectionBar extends HBox {
         if (!hasSelection)
             return;
 
-        // each new selection starts from however the grid is currently being viewed, the user can still change it
-        if (!wasVisible)
+        // each new selection starts from however the grid is currently being viewed and from the next
+        // palette colour, both of which the user can still change before creating the field
+        if (!wasVisible) {
             fieldDisplayComboBox.setValue(state.getDisplayMode());
+            fieldColorPicker.setValue(Color.web(state.nextFieldColor()));
+        }
 
         int bitsPerColumn = state.bitsPerColumn();
         int fromBit = state.getSelectionStart() * bitsPerColumn;
@@ -101,7 +113,8 @@ public class SelectionBar extends HBox {
         int startBit = state.getSelectionStart() * bitsPerColumn;
         int endBit = (state.getSelectionEnd() + 1) * bitsPerColumn - 1;
 
-        state.addField(messageType, new Field(fieldName, startBit, endBit, fieldDisplayComboBox.getValue()));
+        state.addField(messageType, new Field(fieldName, startBit, endBit,
+                fieldDisplayComboBox.getValue(), ColorUtils.toHex(fieldColorPicker.getValue())));
 
         state.clearSelection();
         fieldNameTextField.setText(null);

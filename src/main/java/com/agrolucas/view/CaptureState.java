@@ -33,6 +33,15 @@ public class CaptureState {
     private final IntegerProperty selectionStart = new SimpleIntegerProperty(-1);
     private final IntegerProperty selectionEnd = new SimpleIntegerProperty(-1);
 
+    // bumped whenever a Field is added, removed, or edited. Field is a plain POJO, so editing one
+    // notifies nothing on its own, this is what lets the capture grid know its colouring is stale
+    private final IntegerProperty fieldsRevision = new SimpleIntegerProperty(0);
+
+    /** Default colours handed out to new Fields, so consecutive fields are visually distinct */
+    private static final String[] FIELD_COLOR_PALETTE = {
+            "#e0b341", "#4aa3f0", "#c678dd", "#2dd4a7", "#f0803c", "#6cc24a", "#e06c9f", "#5bc8d6"
+    };
+
     public CaptureState() {
         viewedMessageType.addListener((obs, oldVal, newVal) -> refreshViewedFields());
 
@@ -149,6 +158,7 @@ public class CaptureState {
         messageType.getFields().add(field);
         if (messageType == getViewedMessageType())
             refreshViewedFields();
+        notifyFieldsChanged();
     }
 
     /**
@@ -158,6 +168,29 @@ public class CaptureState {
         messageType.getFields().removeAll(fields);
         if (messageType == getViewedMessageType())
             refreshViewedFields();
+        notifyFieldsChanged();
+    }
+
+    /**
+     * Signal that a Field was added, removed, or had one of its values edited, so anything drawing
+     * Fields (the capture grid colouring) can catch up
+     */
+    public void notifyFieldsChanged() {
+        fieldsRevision.set(fieldsRevision.get() + 1);
+    }
+
+    public IntegerProperty fieldsRevisionProperty() {
+        return fieldsRevision;
+    }
+
+    /**
+     * A colour for a Field about to be created, walking the palette so consecutive Fields of the same
+     * MessageType do not all come out the same colour
+     */
+    public String nextFieldColor() {
+        MessageType viewed = getViewedMessageType();
+        int fieldCount = viewed == null ? 0 : viewed.getFields().size();
+        return FIELD_COLOR_PALETTE[fieldCount % FIELD_COLOR_PALETTE.length];
     }
 
     public int getSelectionStart() {

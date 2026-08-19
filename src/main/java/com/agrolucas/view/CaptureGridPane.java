@@ -1,6 +1,7 @@
 package com.agrolucas.view;
 
 import com.agrolucas.model.Capture;
+import com.agrolucas.model.Field;
 import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.HexPacket;
 import com.agrolucas.model.MessageType;
@@ -33,13 +34,32 @@ import java.util.List;
  */
 public class CaptureGridPane extends VBox {
 
+    // Cell colours are computed in Java rather than set through style classes, because a field's colour is
+    // arbitrary and a stylesheet cannot hold a rule per possible colour. These mirror the palette in style.css.
+    private static final String SELECTED_BACKGROUND = "#123a30";
+    private static final String ACCENT_TEXT = "#2dd4a7";
+    private static final String DIFF_TEXT = "#ff9d96";
+    private static final String DIFF_BORDER = "#7d3b3b";
+    private static final String EMPTY_TEXT = "#3a4552";
+    private static final String DEFAULT_TEXT = "#e6edf3";
+    private static final String MUTED_TEXT = "#66758a";
+    private static final double FIELD_TINT_ALPHA = 0.22;
+
     private final CaptureState state;
     private final GridPane grid = new GridPane();
-    // Contains for each column, the label of the column header and all the data label of the column
-    // [ [Label("cap 1"), Label("A"), Label("B")], [Label("cap 2"), Label("C"), Label("D")], ... ]
-    // This is used to update the style of the column when it is being selected
-    private final List<List<Label>> dataColumnLabels = new ArrayList<>();
+    private final List<Label> columnHeaders = new ArrayList<>();       // the bit offset ruler, one entry per data column
+    private final List<List<DataCell>> columnCells = new ArrayList<>(); // every data cell, grouped by data column
+    private final List<Field> columnFields = new ArrayList<>();         // the Field covering each data column, null when none
     private int selectionAnchorIndex = -1; // the column where a drag-select started
+
+    /**
+     * One character of one capture, remembering the states that decide how it is coloured
+     * @param label, the Label showing the character
+     * @param diff, whether it differs from the reference capture at that position
+     * @param empty, whether this capture is too short to reach that position
+     */
+    private record DataCell(Label label, boolean diff, boolean empty) {
+    }
 
     public CaptureGridPane(CaptureState state) {
         super(12);
@@ -83,14 +103,33 @@ public class CaptureGridPane extends VBox {
         scrollPane.setMinHeight(150); // the grid is the point of the app, never let the other cards squeeze it away
         VBox.setVgrow(scrollPane, Priority.ALWAYS); // Is the most important view of the app, so give priority
 
+        // anything that changes which cells exist rebuilds the grid
         state.getCaptures().addListener((ListChangeListener<Capture>) change -> rebuildGrid());
         state.displayModeProperty().addListener((obs, oldVal, newVal) -> rebuildGrid());
         state.referenceCaptureProperty().addListener((obs, oldVal, newVal) -> rebuildGrid()); // every row's diff highlighting depends on it
-        state.selectionStartProperty().addListener((obs, oldVal, newVal) -> updateColumnHighlight());
-        state.selectionEndProperty().addListener((obs, oldVal, newVal) -> updateColumnHighlight());
+
+        // anything that only changes how existing cells look just repaints them, so the current selection survives
+        state.selectionStartProperty().addListener((obs, oldVal, newVal) -> applyCellStyles());
+        state.selectionEndProperty().addListener((obs, oldVal, newVal) -> applyCellStyles());
+        state.getViewedFields().addListener((ListChangeListener<Field>) change -> refreshFieldStyling());
+        state.fieldsRevisionProperty().addListener((obs, oldVal, newVal) -> refreshFieldStyling());
+
         rebuildGrid();
 
         getChildren().addAll(titleRow, hint, selectionBar, scrollPane);
+    }
+
+    /**
+     * Picks the message type new Fields are added to, and whose Fields the message type section shows.
+     * Only selects among existing message types, creating one is done from the message type section.
+     * The items are displayed through MessageType.toString().
+     */
+    private ComboBox<MessageType> buildMessageTypeComboBox() {
+        ComboBox<MessageType> comboBox = new ComboBox<>(state.getMessageTypes());
+        comboBox.setPromptText("Message type");
+        comboBox.setPrefWidth(170);
+        comboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
+        return comboBox;
     }
 
     /**
@@ -98,7 +137,8 @@ public class CaptureGridPane extends VBox {
      */
     private void rebuildGrid() {
         grid.getChildren().clear();
-        dataColumnLabels.clear();
+        columnHeaders.clear();
+        columnCells.clear();
         state.clearSelection();
 
         if (state.getCaptures().isEmpty()) {
@@ -127,9 +167,8 @@ public class CaptureGridPane extends VBox {
             wireColumnSelection(header, col); // set event handler when clicking and dragging column header
             grid.add(header, col + 2, 0); // starts from the data column
 
-            List<Label> labelsForColumn = new ArrayList<>();
-            labelsForColumn.add(header);
-            dataColumnLabels.add(labelsForColumn);
+            columnHeaders.add(header);
+            columnCells.add(new ArrayList<>());
         }
 
         // the reference is what every other row is compared against, null only when there is no capture at all
@@ -150,21 +189,20 @@ public class CaptureGridPane extends VBox {
             String display = getDisplayValue(capture.getHexPacket());
             for (int col = 0; col < columnCount; col++) {
                 boolean hasValue = col < display.length();
+                boolean isDiff = hasValue && differsFromReference(referenceDisplay, isReference, display, col);
 
                 Label cell = new Label(hasValue ? String.valueOf(display.charAt(col)) : "·");
                 cell.getStyleClass().add("data-cell");
-                if (!hasValue)
-                    cell.getStyleClass().add("empty-cell"); // this capture is shorter than the longest one
-                else if (differsFromReference(referenceDisplay, isReference, display, col))
-                    cell.getStyleClass().add("diff");
                 if ((col + 1) % charsPerByte == 0)
                     cell.getStyleClass().add("byte-end"); // small gap after each complete byte
                 wireColumnSelection(cell, col);
                 grid.add(cell, col + 2, row);
-                dataColumnLabels.get(col).add(cell);
+                columnCells.get(col).add(new DataCell(cell, isDiff, !hasValue));
             }
             row++;
         }
+
+        refreshFieldStyling();
     }
 
     /**
@@ -183,16 +221,97 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * Picks the message type new Fields are added to, and whose Fields the message type section shows.
-     * Only selects among existing message types, creating one is done from the message type section.
-     * The items are displayed through MessageType.toString().
+     * Work out which Field covers each data column, then repaint. Called when the Fields themselves change,
+     * which never changes the shape of the grid, only its colours, so the current selection is left alone.
      */
-    private ComboBox<MessageType> buildMessageTypeComboBox() {
-        ComboBox<MessageType> comboBox = new ComboBox<>(state.getMessageTypes());
-        comboBox.setPromptText("Message type");
-        comboBox.setPrefWidth(170);
-        comboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
-        return comboBox;
+    private void refreshFieldStyling() {
+        columnFields.clear();
+
+        int bitsPerColumn = state.bitsPerColumn();
+        for (int col = 0; col < columnCells.size(); col++) {
+            int columnStartBit = col * bitsPerColumn;
+            int columnEndBit = columnStartBit + bitsPerColumn - 1;
+            columnFields.add(findFieldCovering(columnStartBit, columnEndBit));
+        }
+
+        applyCellStyles();
+    }
+
+    /**
+     * The first Field of the viewed message type overlapping a bit range, null when none does.
+     * A column belongs to a field as soon as they overlap at all, since one column can be narrower
+     * than a field (a nibble in hex) or wider than one (a whole byte in ascii).
+     */
+    private Field findFieldCovering(int startBit, int endBit) {
+        for (Field field : state.getViewedFields()) {
+            if (field.getStartPosition() <= endBit && field.getEndPosition() >= startBit)
+                return field;
+        }
+        return null;
+    }
+
+    /**
+     * Repaint every header and data cell, combining the three things that can colour a cell:
+     * which field it belongs to, whether it differs from the reference, and whether it is selected
+     */
+    private void applyCellStyles() {
+        for (int col = 0; col < columnCells.size(); col++) {
+            boolean selected = !state.isSelectionEmpty() && col >= state.getSelectionStart() && col <= state.getSelectionEnd();
+            Field field = col < columnFields.size() ? columnFields.get(col) : null;
+
+            styleHeader(columnHeaders.get(col), selected, field);
+            for (DataCell cell : columnCells.get(col))
+                styleDataCell(cell, selected, field);
+        }
+    }
+
+    /**
+     * The ruler follows the same colours as the data underneath it
+     */
+    private void styleHeader(Label header, boolean selected, Field field) {
+        String textFill = MUTED_TEXT;
+        if (selected)
+            textFill = ACCENT_TEXT;
+        else if (field != null)
+            textFill = field.getColor();
+
+        header.setStyle("-fx-text-fill: " + textFill + ";"
+                + "-fx-font-weight: " + (selected ? "bold" : "normal") + ";");
+    }
+
+    /**
+     * Decide the final look of one data cell.
+     * The background says whether the cell is selected, otherwise which field it belongs to.
+     * The text says whether it differs from the reference, otherwise which field it belongs to.
+     * Keeping those on separate channels is what lets a cell stay readable as a difference even
+     * while it is selected, and while it belongs to a coloured field.
+     */
+    private void styleDataCell(DataCell cell, boolean selected, Field field) {
+        String background = "transparent";
+        if (selected)
+            background = SELECTED_BACKGROUND;
+        else if (field != null)
+            background = ColorUtils.toRgba(field.getColor(), FIELD_TINT_ALPHA);
+
+        String borderColor = "transparent";
+        String textFill;
+        if (cell.diff()) {
+            textFill = DIFF_TEXT;
+            borderColor = DIFF_BORDER;
+        } else if (cell.empty()) {
+            textFill = EMPTY_TEXT;
+        } else if (field != null) {
+            textFill = field.getColor();
+        } else if (selected) {
+            textFill = ACCENT_TEXT;
+        } else {
+            textFill = DEFAULT_TEXT;
+        }
+
+        cell.label().setStyle("-fx-background-color: " + background + ";"
+                + "-fx-text-fill: " + textFill + ";"
+                + "-fx-border-color: " + borderColor + ";"
+                + "-fx-font-weight: " + (selected || cell.diff() ? "bold" : "normal") + ";");
     }
 
     /**
@@ -267,20 +386,5 @@ public class CaptureGridPane extends VBox {
                 Math.min(selectionAnchorIndex, index),
                 Math.max(selectionAnchorIndex, index)
         ));
-    }
-
-    /**
-     * Refresh the "selected-column" style class on every Label (header and data cells) of every selected data column
-     * Allow the user to see what columns are selected
-     */
-    private void updateColumnHighlight() {
-        for (int col = 0; col < dataColumnLabels.size(); col++) {
-            boolean selected = !state.isSelectionEmpty() && col >= state.getSelectionStart() && col <= state.getSelectionEnd();
-            for (Label label : dataColumnLabels.get(col)) {
-                label.getStyleClass().remove("selected-column");
-                if (selected)
-                    label.getStyleClass().add("selected-column");
-            }
-        }
     }
 }
