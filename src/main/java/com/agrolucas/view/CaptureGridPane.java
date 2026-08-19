@@ -10,6 +10,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -57,8 +58,10 @@ public class CaptureGridPane extends VBox {
         HBox titleRow = new HBox(10, sectionTitle, spacer, fieldDisplayComboBox);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
-        Label hint = new Label("Click a column, or drag across several, to select a bit range and turn it into a field.");
+        Label hint = new Label("Click a column, or drag across several, to select a bit range and turn it into a field. "
+                + "Click a star to make that capture the reference, everything that differs from it is highlighted.");
         hint.getStyleClass().add("card-hint");
+        hint.setWrapText(true);
 
         SelectionBar selectionBar = new SelectionBar(state);
 
@@ -74,6 +77,7 @@ public class CaptureGridPane extends VBox {
 
         state.getCaptures().addListener((ListChangeListener<Capture>) change -> rebuildGrid());
         state.displayModeProperty().addListener((obs, oldVal, newVal) -> rebuildGrid());
+        state.referenceCaptureProperty().addListener((obs, oldVal, newVal) -> rebuildGrid()); // every row's diff highlighting depends on it
         state.selectionStartProperty().addListener((obs, oldVal, newVal) -> updateColumnHighlight());
         state.selectionEndProperty().addListener((obs, oldVal, newVal) -> updateColumnHighlight());
         rebuildGrid();
@@ -120,6 +124,10 @@ public class CaptureGridPane extends VBox {
             dataColumnLabels.add(labelsForColumn);
         }
 
+        // the reference is what every other row is compared against, null only when there is no capture at all
+        Capture reference = state.getReferenceCapture();
+        String referenceDisplay = reference == null ? null : getDisplayValue(reference.getHexPacket());
+
         // create one row for each capture
         int row = 1;
         for (Capture capture : state.getCaptures()) {
@@ -128,13 +136,19 @@ public class CaptureGridPane extends VBox {
             deleteButton.setOnAction(e -> state.getCaptures().remove(capture));
             grid.add(deleteButton, 0, row);
 
-            grid.add(buildNameCell(capture), 1, row);
+            boolean isReference = state.isReference(capture);
+            grid.add(buildNameCell(capture, isReference), 1, row);
 
             String display = getDisplayValue(capture.getHexPacket());
             for (int col = 0; col < columnCount; col++) {
-                String charValue = col < display.length() ? String.valueOf(display.charAt(col)) : "";
-                Label cell = new Label(charValue);
+                boolean hasValue = col < display.length();
+
+                Label cell = new Label(hasValue ? String.valueOf(display.charAt(col)) : "·");
                 cell.getStyleClass().add("data-cell");
+                if (!hasValue)
+                    cell.getStyleClass().add("empty-cell"); // this capture is shorter than the longest one
+                else if (differsFromReference(referenceDisplay, isReference, display, col))
+                    cell.getStyleClass().add("diff");
                 if ((col + 1) % charsPerByte == 0)
                     cell.getStyleClass().add("byte-end"); // small gap after each complete byte
                 wireColumnSelection(cell, col);
@@ -146,16 +160,42 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * Build the name cell of a capture row: its name, followed by its size in bytes
+     * Whether a given position of a capture should be flagged as differing from the reference capture.
+     * Positions the reference does not reach are never flagged, there is nothing to compare them against.
+     * @param referenceDisplay, the reference capture as displayed, null when there is no reference
+     * @param isReference, whether the row being built is the reference itself (never compared against itself)
+     * @param display, the current capture as displayed
+     * @param col, the position being checked
      */
-    private Node buildNameCell(Capture capture) {
+    private boolean differsFromReference(String referenceDisplay, boolean isReference, String display, int col) {
+        if (isReference || referenceDisplay == null || col >= referenceDisplay.length())
+            return false;
+
+        return referenceDisplay.charAt(col) != display.charAt(col);
+    }
+
+    /**
+     * Build the name cell of a capture row: a star to make it the reference, its name, and its size in bytes
+     * @param capture, the capture the row belongs to
+     * @param isReference, whether that capture is the current reference
+     */
+    private Node buildNameCell(Capture capture, boolean isReference) {
+        Button star = new Button(isReference ? "★" : "☆");
+        star.getStyleClass().add("star-button");
+        if (isReference)
+            star.getStyleClass().add("is-reference");
+        star.setTooltip(new Tooltip(isReference ? "Reference capture" : "Compare the others against this capture"));
+        star.setOnAction(e -> state.referenceCaptureProperty().set(capture));
+
         Label name = new Label(capture.getName());
         name.getStyleClass().add("capture-name");
+        if (isReference)
+            name.getStyleClass().add("is-reference");
 
         Label size = new Label(capture.getHexPacket().length() + "B");
         size.getStyleClass().add("capture-size");
 
-        HBox nameCell = new HBox(name, size);
+        HBox nameCell = new HBox(star, name, size);
         nameCell.setAlignment(Pos.CENTER_LEFT);
         return nameCell;
     }

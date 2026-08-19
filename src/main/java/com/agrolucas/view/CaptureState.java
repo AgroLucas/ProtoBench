@@ -9,6 +9,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ public class CaptureState {
     private final ObjectProperty<FieldDisplay> displayMode = new SimpleObjectProperty<>(FieldDisplay.HEX);
     private final ObjectProperty<MessageType> viewedMessageType = new SimpleObjectProperty<>();
     private final ObservableList<Field> viewedFields = FXCollections.observableArrayList(); // mirrors viewedMessageType's plain field list
+    private final ObjectProperty<Capture> referenceCapture = new SimpleObjectProperty<>(); // every other Capture is compared against this one
 
     // a column selection is always a contiguous range, -1 means "no selection"
     private final IntegerProperty selectionStart = new SimpleIntegerProperty(-1);
@@ -33,6 +35,13 @@ public class CaptureState {
     public CaptureState() {
         viewedMessageType.addListener((obs, oldVal, newVal) -> refreshViewedFields());
 
+        // there is always a reference as long as there is at least one Capture: the first one added becomes it,
+        // and deleting the current reference hands the role over to whichever Capture is now first
+        captures.addListener((ListChangeListener<Capture>) change -> {
+            if (!captures.contains(referenceCapture.get()))
+                referenceCapture.set(captures.isEmpty() ? null : captures.get(0));
+        });
+
         MessageType defaultMessageType = new MessageType("Default", new ArrayList<>());
         messageTypes.add(defaultMessageType);
         viewedMessageType.set(defaultMessageType);
@@ -40,6 +49,22 @@ public class CaptureState {
 
     public ObservableList<Capture> getCaptures() {
         return captures;
+    }
+
+    /**
+     * The Capture every other Capture is compared against, to highlight what differs.
+     * Null only while there is no Capture at all.
+     */
+    public Capture getReferenceCapture() {
+        return referenceCapture.get();
+    }
+
+    public ObjectProperty<Capture> referenceCaptureProperty() {
+        return referenceCapture;
+    }
+
+    public boolean isReference(Capture capture) {
+        return capture != null && capture == referenceCapture.get();
     }
 
     public ObservableList<MessageType> getMessageTypes() {

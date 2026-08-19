@@ -316,10 +316,34 @@
     -fx-background-color: -pb-surface-3;
 }
 
+/* this position does not match the reference capture */
+.data-cell.diff {
+    -fx-background-color: #3d1f22;
+    -fx-border-color: #7d3b3b;
+    -fx-border-radius: 3px;
+    -fx-text-fill: #ff9d96;
+    -fx-font-weight: bold;
+}
+
+/* this capture is shorter than the longest one, nothing to show at this position */
+.data-cell.empty-cell {
+    -fx-text-fill: #3a4552;
+}
+
 .data-cell.selected-column {
     -fx-background-color: -pb-accent-soft;
+    -fx-border-color: transparent;
     -fx-text-fill: -pb-accent;
     -fx-font-weight: bold;
+}
+
+/* a cell that is both selected and differing: the background shows it is part of the selected range,
+   the text and border keep showing that it differs, so selecting a range never hides the differences.
+   Three classes, so this wins over both rules above no matter what order they are declared in. */
+.data-cell.diff.selected-column {
+    -fx-background-color: -pb-accent-soft;
+    -fx-border-color: #7d3b3b;
+    -fx-text-fill: #ff9d96;
 }
 
 /* last character of each byte, gets a gap after it so bytes read as units */
@@ -336,6 +360,30 @@
     -fx-font-weight: bold;
     -fx-text-fill: -pb-text;
     -fx-padding: 0 10px 0 2px;
+}
+
+.capture-name.is-reference {
+    -fx-text-fill: -pb-accent;
+}
+
+/* the star that picks which capture the others are compared against */
+.star-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #46525f;
+    -fx-font-size: 13px;
+    -fx-padding: 0 4px 0 0;
+    -fx-cursor: hand;
+}
+
+.star-button:hover {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -pb-accent-hover;
+}
+
+.star-button.is-reference {
+    -fx-text-fill: -pb-accent;
 }
 
 .capture-size {
