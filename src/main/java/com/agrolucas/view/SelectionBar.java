@@ -1,6 +1,7 @@
 package com.agrolucas.view;
 
 import com.agrolucas.model.Field;
+import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.MessageType;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -10,20 +11,18 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.util.StringConverter;
-
-import java.util.ArrayList;
 
 /**
  * Display bar that appears above the capture grid only when data columns are selected.
  * It shows the current bit range and allows for a Field to be created from it.
+ * The Field is added to the message type currently selected in the capture section.
  */
 public class SelectionBar extends HBox {
 
     private final CaptureState state;
     private final Label selectionLabel = new Label();
-    private final ComboBox<MessageType> messageTypeComboBox;
     private final TextField fieldNameTextField = new TextField();
+    private final ComboBox<FieldDisplay> fieldDisplayComboBox = new ComboBox<>();
 
     public SelectionBar(CaptureState state) {
         super(10);
@@ -33,36 +32,14 @@ public class SelectionBar extends HBox {
 
         selectionLabel.getStyleClass().add("selection-label");
 
-        messageTypeComboBox = new ComboBox<>(state.getMessageTypes());
-        messageTypeComboBox.setEditable(true);
-        messageTypeComboBox.setPromptText("Message type");
-        messageTypeComboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty()); // defaults to whichever MessageType is currently viewed, see CaptureState's default MessageType
-
-        // An editable ComboBox<T> needs a StringConverter for any T that isn't String itself
-        messageTypeComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(MessageType messageType) {
-                return messageType == null ? "" : messageType.getName();
-            }
-
-            @Override
-            public MessageType fromString(String name) {
-                if (name == null || name.isBlank())
-                    return null;
-
-                return state.getMessageTypes().stream()
-                        .filter(mt -> mt.getName().equals(name))
-                        .findFirst()
-                        .orElseGet(() -> {
-                            MessageType newMessageType = new MessageType(name, new ArrayList<>());
-                            state.getMessageTypes().add(newMessageType);
-                            return newMessageType;
-                        });
-            }
-        });
-
         fieldNameTextField.setPromptText("Field name");
         HBox.setHgrow(fieldNameTextField, Priority.ALWAYS);
+
+        // how this Field will be displayed in the field section, independent of how the grid is currently viewed
+        Label displayLabel = new Label("shown as");
+        displayLabel.getStyleClass().add("inline-label");
+        fieldDisplayComboBox.getItems().addAll(FieldDisplay.values());
+        fieldDisplayComboBox.setValue(state.getDisplayMode());
 
         Button createFieldButton = new Button("Create field");
         createFieldButton.getStyleClass().add("accent");
@@ -75,7 +52,8 @@ public class SelectionBar extends HBox {
         Region spacer = new Region();
         spacer.setMinWidth(4);
 
-        getChildren().addAll(selectionLabel, spacer, messageTypeComboBox, fieldNameTextField, createFieldButton, cancelButton);
+        getChildren().addAll(selectionLabel, spacer, fieldNameTextField,
+                displayLabel, fieldDisplayComboBox, createFieldButton, cancelButton);
 
         setVisible(false);
         setManaged(false); // fully collapses the space when hidden, setVisible alone would leave a gap
@@ -89,11 +67,17 @@ public class SelectionBar extends HBox {
      */
     private void refresh() {
         boolean hasSelection = !state.isSelectionEmpty();
+        boolean wasVisible = isVisible();
+
         setVisible(hasSelection);
         setManaged(hasSelection);
 
         if (!hasSelection)
             return;
+
+        // each new selection starts from however the grid is currently being viewed, the user can still change it
+        if (!wasVisible)
+            fieldDisplayComboBox.setValue(state.getDisplayMode());
 
         int bitsPerColumn = state.bitsPerColumn();
         int fromBit = state.getSelectionStart() * bitsPerColumn;
@@ -103,12 +87,12 @@ public class SelectionBar extends HBox {
     }
 
     /**
-     * Create a Field from the currently selected data columns, and attach it to the MessageType
-     * typed / selected in the MessageType ComboBox (creating that MessageType if it doesn't exist yet)
+     * Create a Field from the currently selected data columns, and add it to the message type
+     * currently selected in the capture section
      */
     private void createField() {
         String fieldName = fieldNameTextField.getText();
-        MessageType messageType = messageTypeComboBox.getValue();
+        MessageType messageType = state.getViewedMessageType();
 
         if (fieldName == null || fieldName.isBlank() || messageType == null || state.isSelectionEmpty())
             return;
@@ -117,12 +101,9 @@ public class SelectionBar extends HBox {
         int startBit = state.getSelectionStart() * bitsPerColumn;
         int endBit = (state.getSelectionEnd() + 1) * bitsPerColumn - 1;
 
-        Field field = new Field(fieldName, startBit, endBit, state.getDisplayMode());
-        state.addField(messageType, field);
-        state.viewedMessageTypeProperty().set(messageType); // switches the view to a newly created MessageType, a no-op otherwise
+        state.addField(messageType, new Field(fieldName, startBit, endBit, fieldDisplayComboBox.getValue()));
 
         state.clearSelection();
         fieldNameTextField.setText(null);
-        // the message type combo is intentionally left as-is, so the next field defaults to the same MessageType
     }
 }

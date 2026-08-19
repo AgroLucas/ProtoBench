@@ -3,6 +3,7 @@ package com.agrolucas.view;
 import com.agrolucas.model.Capture;
 import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.HexPacket;
+import com.agrolucas.model.MessageType;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -53,9 +54,16 @@ public class CaptureGridPane extends VBox {
         fieldDisplayComboBox.valueProperty().bindBidirectional(state.displayModeProperty());
 
         Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS); // pushes the display selector to the right edge of the card
+        HBox.setHgrow(spacer, Priority.ALWAYS); // pushes the selectors to the right edge of the card
 
-        HBox titleRow = new HBox(10, sectionTitle, spacer, fieldDisplayComboBox);
+        Label messageTypeLabel = new Label("Message type");
+        messageTypeLabel.getStyleClass().add("inline-label");
+
+        Label displayLabel = new Label("View as");
+        displayLabel.getStyleClass().add("inline-label");
+
+        HBox titleRow = new HBox(10, sectionTitle, spacer,
+                messageTypeLabel, buildMessageTypeComboBox(), displayLabel, fieldDisplayComboBox);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
         Label hint = new Label("Click a column, or drag across several, to select a bit range and turn it into a field. "
@@ -172,6 +180,19 @@ public class CaptureGridPane extends VBox {
             return false;
 
         return referenceDisplay.charAt(col) != display.charAt(col);
+    }
+
+    /**
+     * Picks the message type new Fields are added to, and whose Fields the message type section shows.
+     * Only selects among existing message types, creating one is done from the message type section.
+     * The items are displayed through MessageType.toString().
+     */
+    private ComboBox<MessageType> buildMessageTypeComboBox() {
+        ComboBox<MessageType> comboBox = new ComboBox<>(state.getMessageTypes());
+        comboBox.setPromptText("Message type");
+        comboBox.setPrefWidth(170);
+        comboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
+        return comboBox;
     }
 
     /**

@@ -76,6 +76,19 @@
     -fx-text-fill: -pb-text-muted;
 }
 
+/* small caption sitting next to a control, e.g. "View as" before a dropdown */
+.inline-label {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -pb-text-muted;
+}
+
+/* the name of the message type whose fields are being shown */
+.viewed-type-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pb-accent;
+}
+
 
 /* ---------- Text fields ---------- */
 .text-field {
@@ -474,6 +487,24 @@
 
 .table-view .placeholder .label {
     -fx-text-fill: -pb-text-muted;
+}
+
+/* the editors that appear inside a cell while editing it */
+.table-view .text-field {
+    -fx-background-color: -pb-bg;
+    -fx-border-color: -pb-accent;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+.table-view .combo-box {
+    -fx-background-color: -pb-bg;
+    -fx-border-color: -pb-accent;
+}
+
+.button:disabled {
+    -fx-opacity: 0.35;
 }
 
 

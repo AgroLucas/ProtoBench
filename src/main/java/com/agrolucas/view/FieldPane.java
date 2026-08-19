@@ -6,72 +6,184 @@ import com.agrolucas.model.MessageType;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 /**
- * Shows the Fields of whichever MessageType is currently selected, and lets some be deleted.
- * Also holds the ComboBox used to switch which MessageType is being viewed.
+ * Manages message types: creates and deletes them, and shows the Fields of whichever one is
+ * selected in the capture section. Every Field can be edited in place or deleted.
  */
 public class FieldPane extends VBox {
 
     private final CaptureState state;
+    private final TableView<Field> fieldTableView;
 
     public FieldPane(CaptureState state) {
         super(12);
         this.state = state;
         getStyleClass().add("card");
 
-        Label sectionTitle = new Label("MESSAGE TYPE FIELDS");
+        Label sectionTitle = new Label("MESSAGE TYPES");
         sectionTitle.getStyleClass().add("card-title");
 
-        ComboBox<MessageType> messageTypeComboBox = new ComboBox<>(state.getMessageTypes());
-        messageTypeComboBox.setPromptText("Select a message type");
-        messageTypeComboBox.setPrefWidth(210);
-        messageTypeComboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
+        Label separator = new Label("›");
+        separator.getStyleClass().add("inline-label");
+
+        Label viewedTypeName = new Label();
+        viewedTypeName.getStyleClass().add("viewed-type-name");
+
+        fieldTableView = buildFieldTable();
+
+        TextField newTypeNameTextField = new TextField();
+        newTypeNameTextField.setPromptText("New message type…");
+        newTypeNameTextField.setPrefWidth(160);
+        newTypeNameTextField.setOnAction(e -> createMessageType(newTypeNameTextField)); // ENTER while typing the name
+
+        Button createTypeButton = new Button("Create");
+        createTypeButton.getStyleClass().add("ghost"); // quiet, it sits among the destructive actions
+        createTypeButton.setTooltip(new Tooltip("Create a new message type and switch to it"));
+        createTypeButton.setOnAction(e -> createMessageType(newTypeNameTextField));
+
+        Button deleteFieldButton = new Button("Delete fields");
+        deleteFieldButton.getStyleClass().add("danger");
+        deleteFieldButton.setTooltip(new Tooltip("Delete the fields selected in the table below"));
+        deleteFieldButton.setOnAction(e -> deleteFields(fieldTableView.getSelectionModel().getSelectedItems()));
+
+        Button deleteTypeButton = new Button("Delete type");
+        deleteTypeButton.getStyleClass().add("danger");
+        deleteTypeButton.setTooltip(new Tooltip("Delete the message type being shown, along with its fields"));
+        deleteTypeButton.setOnAction(e -> state.deleteMessageType(state.getViewedMessageType()));
 
         Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS); // pushes the delete button to the right edge of the card
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        TableView<Field> fieldTableView = new TableView<>(state.getViewedFields());
-        fieldTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        fieldTableView.setPrefHeight(150); // secondary to the capture grid, which should get most of the window
-        fieldTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        fieldTableView.setPlaceholder(new Label("No fields yet. Select columns in the grid above to create one."));
+        // both the shown name and whether the type may be deleted follow whichever message type is being viewed
+        state.viewedMessageTypeProperty().addListener((obs, oldVal, newVal) -> refreshViewedType(viewedTypeName, deleteTypeButton));
+        refreshViewedType(viewedTypeName, deleteTypeButton);
 
-        TableColumn<Field, String> fieldNameColumn = new TableColumn<>("FIELD NAME");
-        fieldNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        HBox titleRow = new HBox(10, sectionTitle, separator, viewedTypeName, spacer,
+                newTypeNameTextField, createTypeButton, deleteFieldButton, deleteTypeButton);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label hint = new Label("Double-click a cell to edit it. Switch between message types from the capture section above.");
+        hint.getStyleClass().add("card-hint");
+
+        getChildren().addAll(titleRow, hint, fieldTableView);
+    }
+
+    /**
+     * Create the message type named in the given field and switch to it.
+     * A name already in use simply switches to that existing message type instead of duplicating it.
+     */
+    private void createMessageType(TextField newTypeNameTextField) {
+        MessageType created = state.findOrCreateMessageType(newTypeNameTextField.getText());
+        if (created == null) // blank name
+            return;
+
+        state.viewedMessageTypeProperty().set(created);
+        newTypeNameTextField.clear();
+    }
+
+    /**
+     * Show the name of the message type being viewed, and only allow deleting it when it is not the default one
+     */
+    private void refreshViewedType(Label viewedTypeName, Button deleteTypeButton) {
+        MessageType viewed = state.getViewedMessageType();
+        viewedTypeName.setText(viewed == null ? "-" : viewed.getName());
+        deleteTypeButton.setDisable(viewed == null || state.isDefaultMessageType(viewed));
+    }
+
+    /**
+     * The table of Fields, every column editable in place
+     */
+    private TableView<Field> buildFieldTable() {
+        TableView<Field> table = new TableView<>(state.getViewedFields());
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        table.setPrefHeight(150); // secondary to the capture grid, which should get most of the window
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setPlaceholder(new Label("No fields yet. Select columns in the grid above to create one."));
+        table.setEditable(true);
+
+        TableColumn<Field, String> nameColumn = new TableColumn<>("FIELD NAME");
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        nameColumn.setOnEditCommit(event -> {
+            String newName = event.getNewValue();
+            if (newName != null && !newName.isBlank())
+                event.getRowValue().setName(newName.trim());
+            table.refresh(); // the model is a plain POJO, nothing notifies the table on its own
+        });
 
         TableColumn<Field, Integer> startColumn = new TableColumn<>("START BIT");
         startColumn.setCellValueFactory(new PropertyValueFactory<>("startPosition"));
+        startColumn.setCellFactory(TextFieldTableCell.forTableColumn(integerConverter()));
         startColumn.setMaxWidth(130);
+        startColumn.setOnEditCommit(event -> {
+            Integer newStart = event.getNewValue();
+            Field field = event.getRowValue();
+            if (newStart != null && newStart >= 0 && newStart <= field.getEndPosition())
+                field.setStartPosition(newStart);
+            table.refresh(); // also puts the old value back on screen when the entry was rejected
+        });
 
         TableColumn<Field, Integer> endColumn = new TableColumn<>("END BIT");
         endColumn.setCellValueFactory(new PropertyValueFactory<>("endPosition"));
+        endColumn.setCellFactory(TextFieldTableCell.forTableColumn(integerConverter()));
         endColumn.setMaxWidth(130);
+        endColumn.setOnEditCommit(event -> {
+            Integer newEnd = event.getNewValue();
+            Field field = event.getRowValue();
+            if (newEnd != null && newEnd >= field.getStartPosition())
+                field.setEndPosition(newEnd);
+            table.refresh();
+        });
 
         TableColumn<Field, FieldDisplay> displayColumn = new TableColumn<>("DISPLAY");
         displayColumn.setCellValueFactory(new PropertyValueFactory<>("fieldDisplay"));
+        displayColumn.setCellFactory(ComboBoxTableCell.forTableColumn(FieldDisplay.values()));
         displayColumn.setMaxWidth(150);
+        displayColumn.setOnEditCommit(event -> {
+            if (event.getNewValue() != null)
+                event.getRowValue().setFieldDisplay(event.getNewValue());
+            table.refresh();
+        });
 
-        fieldTableView.getColumns().addAll(fieldNameColumn, startColumn, endColumn, displayColumn);
+        table.getColumns().addAll(nameColumn, startColumn, endColumn, displayColumn);
+        return table;
+    }
 
-        Button deleteFieldButton = new Button("Delete selected");
-        deleteFieldButton.getStyleClass().add("danger");
-        deleteFieldButton.setOnAction(e -> deleteFields(fieldTableView.getSelectionModel().getSelectedItems()));
+    /**
+     * Converts the text typed into a bit position cell, yielding null when it is not a number.
+     * The edit commit handlers treat null as "leave the value alone", so bad input is simply ignored.
+     */
+    private StringConverter<Integer> integerConverter() {
+        return new StringConverter<>() {
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "" : value.toString();
+            }
 
-        HBox titleRow = new HBox(10, sectionTitle, messageTypeComboBox, spacer, deleteFieldButton);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-
-        getChildren().addAll(titleRow, fieldTableView);
+            @Override
+            public Integer fromString(String text) {
+                try {
+                    return Integer.valueOf(text.trim());
+                } catch (NumberFormatException | NullPointerException e) {
+                    return null;
+                }
+            }
+        };
     }
 
     private void deleteFields(ObservableList<Field> selectedItems) {

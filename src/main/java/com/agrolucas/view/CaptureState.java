@@ -27,6 +27,7 @@ public class CaptureState {
     private final ObjectProperty<MessageType> viewedMessageType = new SimpleObjectProperty<>();
     private final ObservableList<Field> viewedFields = FXCollections.observableArrayList(); // mirrors viewedMessageType's plain field list
     private final ObjectProperty<Capture> referenceCapture = new SimpleObjectProperty<>(); // every other Capture is compared against this one
+    private final MessageType defaultMessageType = new MessageType("Default", new ArrayList<>()); // always present, cannot be deleted
 
     // a column selection is always a contiguous range, -1 means "no selection"
     private final IntegerProperty selectionStart = new SimpleIntegerProperty(-1);
@@ -42,7 +43,6 @@ public class CaptureState {
                 referenceCapture.set(captures.isEmpty() ? null : captures.get(0));
         });
 
-        MessageType defaultMessageType = new MessageType("Default", new ArrayList<>());
         messageTypes.add(defaultMessageType);
         viewedMessageType.set(defaultMessageType);
     }
@@ -85,6 +85,47 @@ public class CaptureState {
 
     public ObjectProperty<MessageType> viewedMessageTypeProperty() {
         return viewedMessageType;
+    }
+
+    /**
+     * Whether a MessageType is the built-in default one, which always exists and cannot be deleted
+     */
+    public boolean isDefaultMessageType(MessageType messageType) {
+        return messageType == defaultMessageType;
+    }
+
+    /**
+     * Look up a MessageType by name, creating and registering it if no MessageType has that name yet.
+     * This is what lets the message type ComboBox double as a "create a new type" field.
+     * @param name, the name to look for
+     * @return the existing or newly created MessageType, null if the name is blank
+     */
+    public MessageType findOrCreateMessageType(String name) {
+        if (name == null || name.isBlank())
+            return null;
+
+        return messageTypes.stream()
+                .filter(mt -> mt.getName().equals(name))
+                .findFirst()
+                .orElseGet(() -> {
+                    MessageType newMessageType = new MessageType(name, new ArrayList<>());
+                    messageTypes.add(newMessageType);
+                    return newMessageType;
+                });
+    }
+
+    /**
+     * Delete a MessageType along with its Fields, and fall back to viewing the default one.
+     * The default MessageType itself is never deleted.
+     * @param messageType, the MessageType to delete
+     */
+    public void deleteMessageType(MessageType messageType) {
+        if (messageType == null || isDefaultMessageType(messageType))
+            return;
+
+        messageTypes.remove(messageType);
+        // removing the viewed item from the list nulls the bound ComboBox, so the view is put back on the default
+        viewedMessageType.set(defaultMessageType);
     }
 
     /**
