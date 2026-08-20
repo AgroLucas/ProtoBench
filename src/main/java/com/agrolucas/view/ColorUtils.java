@@ -6,7 +6,7 @@ import javafx.scene.paint.Color;
 import java.util.Locale;
 
 /**
- * Converts between the hex colour strings stored on a Field and the JavaFX types the UI needs.
+ * Converts between the hex color strings stored on a Field and the JavaFX types the UI needs.
  * Every format call uses Locale.ROOT: under a locale that writes decimals with a comma, "0,18"
  * would come out instead of "0.18" and the generated CSS would be invalid.
  */
@@ -16,7 +16,7 @@ public final class ColorUtils {
     }
 
     /**
-     * Parse a hex colour, falling back to the default Field colour when it cannot be read
+     * Parse a hex color, falling back to the default Field color when it cannot be read
      */
     public static Color parse(String hexColor) {
         try {
@@ -27,7 +27,7 @@ public final class ColorUtils {
     }
 
     /**
-     * The "#rrggbb" form of a colour, which is what a Field stores
+     * The "#rrggbb" form of a color, which is what a Field stores
      */
     public static String toHex(Color color) {
         return String.format(Locale.ROOT, "#%02x%02x%02x",
@@ -37,9 +37,9 @@ public final class ColorUtils {
     }
 
     /**
-     * A CSS rgba() colour built from a hex colour and an opacity, used for the translucent
+     * A CSS rgba() color built from a hex color and an opacity, used for the translucent
      * background tint behind the cells of a field
-     * @param hexColor, the colour to tint with
+     * @param hexColor, the color to tint with
      * @param alpha, the opacity, 0 (invisible) to 1 (solid)
      */
     public static String toRgba(String hexColor, double alpha) {

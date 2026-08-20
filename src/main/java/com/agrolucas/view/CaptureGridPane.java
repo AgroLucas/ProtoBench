@@ -27,6 +27,7 @@ import java.util.Objects;
 
 /**
  * Displays the following:
+ *  - the message type selection
  *  - the view selection (hex / bin / ...)
  *  - the 'field add' section in case data is selected
  *  - every Capture in a Grid:
@@ -37,8 +38,8 @@ import java.util.Objects;
  */
 public class CaptureGridPane extends VBox {
 
-    // Cell colours are computed in Java rather than set through style classes, because a field's colour is
-    // arbitrary and a stylesheet cannot hold a rule per possible colour. These mirror the palette in style.css.
+    // Cell colors are computed in Java rather than set through style classes, because a field's color is
+    // arbitrary and a stylesheet cannot hold a rule per possible color. These mirror the palette in style.css.
     private static final String SELECTED_BACKGROUND = "#123a30";
     private static final String ACCENT_TEXT = "#2dd4a7";
     private static final String DIFF_TEXT = "#ff9d96";
@@ -50,7 +51,7 @@ public class CaptureGridPane extends VBox {
 
     // fixed so the data columns always begin at the same place, whatever the capture names are
     private static final double NAME_COLUMN_WIDTH = 240;
-    private static final double CRC_COLUMN_WIDTH = 72; // wider than the badge itself, the slack keeps it off the data
+    private static final double CRC_COLUMN_WIDTH = 72; // wider than the badge itself
 
     private final CaptureState state;
     private final GridPane grid = new GridPane();
@@ -85,21 +86,26 @@ public class CaptureGridPane extends VBox {
         Label sectionTitle = new Label("CAPTURES");
         sectionTitle.getStyleClass().add("card-title");
 
-        ComboBox<FieldDisplay> fieldDisplayComboBox = new ComboBox<>();
-        fieldDisplayComboBox.getItems().addAll(FieldDisplay.values());
-        fieldDisplayComboBox.valueProperty().bindBidirectional(state.displayModeProperty());
-
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS); // pushes the selectors to the right edge of the card
 
         Label messageTypeLabel = new Label("Message type");
         messageTypeLabel.getStyleClass().add("inline-label");
 
+        ComboBox<MessageType> messageTypeComboBox = new ComboBox<>(state.getMessageTypes());
+        messageTypeComboBox.setPromptText("Message type");
+        messageTypeComboBox.setPrefWidth(170);
+        messageTypeComboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
+
         Label displayLabel = new Label("View as");
         displayLabel.getStyleClass().add("inline-label");
 
+        ComboBox<FieldDisplay> fieldDisplayComboBox = new ComboBox<>();
+        fieldDisplayComboBox.getItems().addAll(FieldDisplay.values());
+        fieldDisplayComboBox.valueProperty().bindBidirectional(state.displayModeProperty());
+
         HBox titleRow = new HBox(10, sectionTitle, spacer,
-                messageTypeLabel, buildMessageTypeComboBox(), displayLabel, fieldDisplayComboBox);
+                messageTypeLabel, messageTypeComboBox, displayLabel, fieldDisplayComboBox);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
         Label hint = new Label("Click a column, or drag across several, to select a bit range and turn it into a field. "
@@ -136,19 +142,6 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * Picks the message type new Fields are added to, and whose Fields the message type section shows.
-     * Only selects among existing message types, creating one is done from the message type section.
-     * The items are displayed through MessageType.toString().
-     */
-    private ComboBox<MessageType> buildMessageTypeComboBox() {
-        ComboBox<MessageType> comboBox = new ComboBox<>(state.getMessageTypes());
-        comboBox.setPromptText("Message type");
-        comboBox.setPrefWidth(170);
-        comboBox.valueProperty().bindBidirectional(state.viewedMessageTypeProperty());
-        return comboBox;
-    }
-
-    /**
      * Rebuild the whole grid from scratch
      */
     private void rebuildGrid() {
@@ -172,14 +165,13 @@ public class CaptureGridPane extends VBox {
         cornerHeader.getStyleClass().add("grid-corner-header");
         grid.add(cornerHeader, 1, 0);
 
-        // grid columns: 0 delete, 1 name, 2 CRC verdict, 3 onwards the data.
-        // The name and CRC columns are fixed width so the data always starts at the same place,
-        // however long the capture names happen to be.
+        // grid columns: 0 delete button, 1 name, 2 CRC verdict, 3 to n data
+        // The name and CRC columns are fixed width so the data always starts at the same place
         int firstDataColumn = 3;
 
         // create the header for each data column
         for (int col = 0; col < columnCount; col++) {
-            // only every few columns is labelled, otherwise the ruler is unreadable
+            // only every few columns is labeled, otherwise the ruler is unreadable
             // the number shown is the bit offset, matching what the selection bar reports
             boolean isTick = col % tickInterval() == 0;
             Label header = new Label(isTick ? String.valueOf(col * state.bitsPerColumn()) : "");
@@ -245,7 +237,7 @@ public class CaptureGridPane extends VBox {
 
     /**
      * Work out which Field covers each data column, then repaint. Called when the Fields themselves change,
-     * which never changes the shape of the grid, only its colours, so the current selection is left alone.
+     * which never changes the shape of the grid, only its colors, so the current selection is left alone.
      */
     private void refreshFieldStyling() {
         columnFields.clear();
@@ -275,7 +267,7 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * Repaint every header and data cell, combining the three things that can colour a cell:
+     * Repaint every header and data cell, combining the three things that can color a cell:
      * which field it belongs to, whether it differs from the reference, and whether it is selected
      */
     private void applyCellStyles() {
@@ -290,7 +282,7 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * The ruler follows the same colours as the data underneath it
+     * The ruler follows the same colors as the data underneath it
      */
     private void styleHeader(Label header, boolean selected, Field field) {
         String textFill = MUTED_TEXT;
@@ -308,7 +300,7 @@ public class CaptureGridPane extends VBox {
      * The background says whether the cell is selected, otherwise which field it belongs to.
      * The text says whether it differs from the reference, otherwise which field it belongs to.
      * Keeping those on separate channels is what lets a cell stay readable as a difference even
-     * while it is selected, and while it belongs to a coloured field.
+     * while it is selected, and while it belongs to a colored field.
      */
     private void styleDataCell(DataCell cell, boolean selected, Field field) {
         String background = "transparent";
@@ -356,8 +348,7 @@ public class CaptureGridPane extends VBox {
         if (isReference)
             name.getStyleClass().add("is-reference");
 
-        // a long name must not be allowed to push the data columns to the right, so it is clipped
-        // and the full name moves to a tooltip instead
+        // a long name must not be allowed to push the data columns to the right, so it is clipped and the full name moves to a tooltip instead
         name.setMaxWidth(150);
         name.setTextOverrun(OverrunStyle.ELLIPSIS);
         name.setTooltip(new Tooltip(capture.getName()));
@@ -382,7 +373,7 @@ public class CaptureGridPane extends VBox {
         crcBadges.add(new CrcBadge(badge, capture));
 
         // the badge keeps its natural size, the container is what holds the fixed slot. Sizing the
-        // label itself would stretch the coloured pill all the way to the first data column.
+        // label itself would stretch the colored pill all the way to the first data column.
         HBox slot = new HBox(badge);
         slot.setAlignment(Pos.CENTER_LEFT);
         slot.setMinWidth(CRC_COLUMN_WIDTH);
@@ -421,7 +412,7 @@ public class CaptureGridPane extends VBox {
     }
 
     /**
-     * How often the ruler shows a bit offset, kept low enough to stay readable in every display mode
+     * How often the ruler (header of data column in grid) shows a bit offset, kept low enough to stay readable in every display mode
      */
     private int tickInterval() {
         return switch (state.getDisplayMode()) {

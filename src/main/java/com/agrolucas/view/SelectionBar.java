@@ -36,6 +36,9 @@ public class SelectionBar extends HBox {
 
         selectionLabel.getStyleClass().add("selection-label");
 
+        Region spacer = new Region();
+        spacer.setMinWidth(4);
+
         fieldNameTextField.setPromptText("Field name");
         HBox.setHgrow(fieldNameTextField, Priority.ALWAYS);
 
@@ -43,9 +46,9 @@ public class SelectionBar extends HBox {
         Label displayLabel = new Label("shown as");
         displayLabel.getStyleClass().add("inline-label");
         fieldDisplayComboBox.getItems().addAll(FieldDisplay.values());
-        fieldDisplayComboBox.setValue(state.getDisplayMode());
+        fieldDisplayComboBox.setValue(state.getDisplayMode()); // by default has the same value as the capture grid's current view type
 
-        // the colour this field is drawn with in the capture grid
+        // the color of the field in the capture grid
         fieldColorPicker.getStyleClass().add("field-color-picker");
         fieldColorPicker.setTooltip(new Tooltip("Colour used for this field in the capture grid"));
         fieldColorPicker.setValue(Color.web(state.nextFieldColor()));
@@ -58,13 +61,10 @@ public class SelectionBar extends HBox {
         cancelButton.getStyleClass().add("ghost");
         cancelButton.setOnAction(e -> state.clearSelection());
 
-        Region spacer = new Region();
-        spacer.setMinWidth(4);
-
         getChildren().addAll(selectionLabel, spacer, fieldNameTextField,
                 displayLabel, fieldDisplayComboBox, fieldColorPicker, createFieldButton, cancelButton);
 
-        setVisible(false);
+        setVisible(false); // hide the node
         setManaged(false); // fully collapses the space when hidden, setVisible alone would leave a gap
 
         state.selectionStartProperty().addListener((obs, oldVal, newVal) -> refresh());
@@ -84,8 +84,6 @@ public class SelectionBar extends HBox {
         if (!hasSelection)
             return;
 
-        // each new selection starts from however the grid is currently being viewed and from the next
-        // palette colour, both of which the user can still change before creating the field
         if (!wasVisible) {
             fieldDisplayComboBox.setValue(state.getDisplayMode());
             fieldColorPicker.setValue(Color.web(state.nextFieldColor()));

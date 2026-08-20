@@ -34,10 +34,10 @@ public class CaptureState {
     private final IntegerProperty selectionEnd = new SimpleIntegerProperty(-1);
 
     // bumped whenever a Field is added, removed, or edited. Field is a plain POJO, so editing one
-    // notifies nothing on its own, this is what lets the capture grid know its colouring is stale
+    // notifies nothing on its own, this is what lets the capture grid know its coloring is stale
     private final IntegerProperty fieldsRevision = new SimpleIntegerProperty(0);
 
-    /** Default colours handed out to new Fields, so consecutive fields are visually distinct */
+    /** Default colors handed out to new Fields, so consecutive fields are visually distinct */
     private static final String[] FIELD_COLOR_PALETTE = {
             "#e0b341", "#4aa3f0", "#c678dd", "#2dd4a7", "#f0803c", "#6cc24a", "#e06c9f", "#5bc8d6"
     };
@@ -184,8 +184,7 @@ public class CaptureState {
     }
 
     /**
-     * A colour for a Field about to be created, walking the palette so consecutive Fields of the same
-     * MessageType do not all come out the same colour
+     * Walking the default color palette to avoid the creation of consecutive Fields having the same color
      */
     public String nextFieldColor() {
         MessageType viewed = getViewedMessageType();
@@ -223,6 +222,9 @@ public class CaptureState {
         selectionEnd.set(Math.max(fromIndex, toIndex));
     }
 
+    /**
+     * Reset the column selection range
+     */
     public void clearSelection() {
         selectionStart.set(-1);
         selectionEnd.set(-1);
