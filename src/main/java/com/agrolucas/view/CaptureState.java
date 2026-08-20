@@ -4,6 +4,7 @@ import com.agrolucas.model.Capture;
 import com.agrolucas.model.Field;
 import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.MessageType;
+import com.agrolucas.persistence.ProjectData;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -181,6 +182,50 @@ public class CaptureState {
 
     public IntegerProperty fieldsRevisionProperty() {
         return fieldsRevision;
+    }
+
+    /**
+     * Everything currently on screen, ready to be written to a project file
+     */
+    public ProjectData toProjectData() {
+        return new ProjectData(
+                List.copyOf(captures),
+                List.copyOf(messageTypes),
+                captures.indexOf(getReferenceCapture()),
+                messageTypes.indexOf(getViewedMessageType()));
+    }
+
+    /**
+     * Replace everything on screen with a loaded project.
+     * The built-in default message type stays the same instance so it remains undeletable, taking on the
+     * fields of the loaded type of the same name when the file has one.
+     */
+    public void loadProjectData(ProjectData project) {
+        clearSelection();
+
+        defaultMessageType.getFields().clear();
+        messageTypes.setAll(defaultMessageType);
+
+        for (MessageType loaded : project.messageTypes()) {
+            if (loaded.getName().equals(defaultMessageType.getName()))
+                defaultMessageType.getFields().addAll(loaded.getFields());
+            else
+                messageTypes.add(loaded);
+        }
+
+        captures.setAll(project.captures()); // the list listener puts the reference on the first capture
+
+        int referenceIndex = project.referenceIndex();
+        if (referenceIndex >= 0 && referenceIndex < captures.size())
+            referenceCapture.set(captures.get(referenceIndex));
+
+        int viewedIndex = project.viewedMessageTypeIndex();
+        viewedMessageType.set(viewedIndex >= 0 && viewedIndex < messageTypes.size()
+                ? messageTypes.get(viewedIndex)
+                : defaultMessageType);
+
+        refreshViewedFields();
+        notifyFieldsChanged();
     }
 
     /**
