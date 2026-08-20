@@ -1,9 +1,13 @@
 package com.agrolucas.view;
 
+import com.agrolucas.model.Capture;
 import com.agrolucas.model.Field;
+import com.agrolucas.model.FieldDecoder;
 import com.agrolucas.model.FieldDisplay;
+import com.agrolucas.model.HexPacket;
 import com.agrolucas.model.MessageType;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -173,8 +177,112 @@ public class FieldPane extends VBox {
         colorColumn.setMaxWidth(120);
         colorColumn.setSortable(false);
 
-        table.getColumns().addAll(nameColumn, startColumn, endColumn, displayColumn, colorColumn);
+        TableColumn<Field, Field> rulesColumn = new TableColumn<>("DECODE RULES");
+        rulesColumn.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue()));
+        rulesColumn.setCellFactory(column -> new DecodeRulesCell());
+        rulesColumn.setMaxWidth(190);
+        rulesColumn.setSortable(false);
+
+        TableColumn<Field, String> valueColumn = new TableColumn<>("VALUE IN REFERENCE");
+        valueColumn.setCellValueFactory(cellData -> new SimpleObjectProperty<>(describeValue(cellData.getValue())));
+        valueColumn.setMaxWidth(230);
+        valueColumn.setSortable(false);
+        // the monospace font belongs on the cells only. Putting it on the column would style the
+        // header too, leaving it in a different font from every other header.
+        valueColumn.setCellFactory(column -> {
+            TableCell<Field, String> cell = new TableCell<>() {
+                @Override
+                protected void updateItem(String value, boolean empty) {
+                    super.updateItem(value, empty);
+                    setText(empty ? null : value);
+                }
+            };
+            cell.getStyleClass().add("value-cell");
+            return cell;
+        });
+
+        table.getColumns().addAll(nameColumn, startColumn, endColumn, displayColumn, colorColumn, rulesColumn, valueColumn);
+
+        // the decoded value is read off the reference capture, so it has to be recomputed whenever the
+        // reference changes, the captures change, or any rule / position of a field is edited
+        state.referenceCaptureProperty().addListener((obs, oldVal, newVal) -> table.refresh());
+        state.getCaptures().addListener((ListChangeListener<Capture>) change -> table.refresh());
+        state.fieldsRevisionProperty().addListener((obs, oldVal, newVal) -> table.refresh());
+
         return table;
+    }
+
+    /**
+     * The value this Field holds in the reference capture, with the CRC verdict appended when it is a CRC field
+     */
+    private String describeValue(Field field) {
+        Capture reference = state.getReferenceCapture();
+        if (reference == null)
+            return "no reference";
+
+        HexPacket packet = reference.getHexPacket();
+        if (!FieldDecoder.fitsInPacket(packet, field))
+            return "-"; // the reference is too short to hold this field
+
+        String value = FieldDecoder.formattedValue(packet, field);
+
+        FieldDecoder.CrcCheck crcCheck = FieldDecoder.checkCrc(packet, field);
+        if (crcCheck == null)
+            return value;
+
+        return crcCheck.valid()
+                ? value + "  ✓ valid"
+                : value + String.format("  ✗ expected 0x%X", crcCheck.expected());
+    }
+
+    /**
+     * A table cell with a button opening the decode rules editor for its Field, and summarising
+     * the rules currently on it
+     */
+    private class DecodeRulesCell extends TableCell<Field, Field> {
+
+        private final Button editButton = new Button();
+
+        private DecodeRulesCell() {
+            editButton.getStyleClass().add("ghost");
+            editButton.setOnAction(event -> openRulesDialog(getItem()));
+        }
+
+        @Override
+        protected void updateItem(Field field, boolean empty) {
+            super.updateItem(field, empty);
+
+            if (empty || field == null) {
+                setGraphic(null); // recycled cells must be cleared, otherwise buttons show on blank rows
+                return;
+            }
+
+            editButton.setText(summarise(field));
+            setGraphic(editButton);
+        }
+
+        private String summarise(Field field) {
+            int ruleCount = field.getDecodeRules().size();
+            if (ruleCount == 0)
+                return "Add rules…";
+
+            return field.hasCrc() && ruleCount == 1
+                    ? "CRC…"
+                    : ruleCount + " rule" + (ruleCount > 1 ? "s" : "") + "…";
+        }
+    }
+
+    /**
+     * Open the rules editor and refresh everything once it closes, since rules change both the
+     * decoded values here and the CRC verdicts in the capture section
+     */
+    private void openRulesDialog(Field field) {
+        if (field == null)
+            return;
+
+        new DecodeRulesDialog(field).showAndWait();
+        state.notifyFieldsChanged();
+        fieldTableView.refresh();
     }
 
     /**

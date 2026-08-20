@@ -1,77 +1,27 @@
 package com.agrolucas.model;
 
-public class CrcConfig {
+/**
+ * How to compute the CRC that a Field holds.
+ * The positions are bit positions inside the packet, like a Field's own start and end.
+ *
+ * @param poly, the generator polynomial, without its top bit (e.g. 0x1021 for CRC-16/CCITT)
+ * @param init, the value the register starts from
+ * @param payloadStartPosition, first bit the CRC is computed over (inclusive)
+ * @param payloadEndPosition, last bit the CRC is computed over (inclusive)
+ * @param reflectIn, whether every input byte is bit-reversed before being fed in
+ * @param reflectOut, whether the final value is bit-reversed
+ * @param xorOut, value the result is xored with at the very end. 0 for CRC-16/CCITT, but
+ *                0xFFFFFFFF for CRC-32, without which that variant comes out wrong
+ */
+public record CrcConfig(long poly,
+                        long init,
+                        int payloadStartPosition,
+                        int payloadEndPosition,
+                        boolean reflectIn,
+                        boolean reflectOut,
+                        long xorOut) {
 
-    private int poly;
-    private int init;
-    private int payloadStartPosition;
-    private int payloadEndPosition;
-    private Integer refIn;
-    private Integer refOut;
-
-
-    public CrcConfig(int poly, int init, int payloadStartPosition, int payloadEndPosition, int refIn, int refOut) {
-        this.poly = poly;
-        this.init = init;
-        this.payloadStartPosition = payloadStartPosition;
-        this.payloadEndPosition = payloadEndPosition;
-        this.refIn = refIn;
-        this.refOut = refOut;
-    }
-
-    public CrcConfig(int poly, int init, int payloadStartPosition, int payloadEndPosition) {
-        this.poly = poly;
-        this.init = init;
-        this.payloadStartPosition = payloadStartPosition;
-        this.payloadEndPosition = payloadEndPosition;
-    }
-
-
-    public int getPoly() {
-        return poly;
-    }
-
-    public void setPoly(int poly) {
-        this.poly = poly;
-    }
-
-    public int getInit() {
-        return init;
-    }
-
-    public void setInit(int init) {
-        this.init = init;
-    }
-
-    public int getPayloadStartPosition() {
-        return payloadStartPosition;
-    }
-
-    public void setPayloadStartPosition(int payloadStartPosition) {
-        this.payloadStartPosition = payloadStartPosition;
-    }
-
-    public int getPayloadEndPosition() {
-        return payloadEndPosition;
-    }
-
-    public void setPayloadEndPosition(int payloadEndPosition) {
-        this.payloadEndPosition = payloadEndPosition;
-    }
-
-    public int getRefIn() {
-        return refIn;
-    }
-
-    public void setRefIn(int refIn) {
-        this.refIn = refIn;
-    }
-
-    public int getRefOut() {
-        return refOut;
-    }
-
-    public void setRefOut(int refOut) {
-        this.refOut = refOut;
+    public CrcConfig(long poly, long init, int payloadStartPosition, int payloadEndPosition) {
+        this(poly, init, payloadStartPosition, payloadEndPosition, false, false, 0);
     }
 }

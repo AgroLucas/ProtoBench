@@ -2,6 +2,7 @@ package com.agrolucas.view;
 
 import com.agrolucas.model.Capture;
 import com.agrolucas.model.Field;
+import com.agrolucas.model.FieldDecoder;
 import com.agrolucas.model.FieldDisplay;
 import com.agrolucas.model.HexPacket;
 import com.agrolucas.model.MessageType;
@@ -11,6 +12,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
@@ -21,6 +23,7 @@ import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Displays the following:
@@ -45,12 +48,25 @@ public class CaptureGridPane extends VBox {
     private static final String MUTED_TEXT = "#66758a";
     private static final double FIELD_TINT_ALPHA = 0.22;
 
+    // fixed so the data columns always begin at the same place, whatever the capture names are
+    private static final double NAME_COLUMN_WIDTH = 240;
+    private static final double CRC_COLUMN_WIDTH = 72; // wider than the badge itself, the slack keeps it off the data
+
     private final CaptureState state;
     private final GridPane grid = new GridPane();
     private final List<Label> columnHeaders = new ArrayList<>();       // the bit offset ruler, one entry per data column
     private final List<List<DataCell>> columnCells = new ArrayList<>(); // every data cell, grouped by data column
     private final List<Field> columnFields = new ArrayList<>();         // the Field covering each data column, null when none
+    private final List<CrcBadge> crcBadges = new ArrayList<>();         // the CRC verdict shown on each capture row
     private int selectionAnchorIndex = -1; // the column where a drag-select started
+
+    /**
+     * The CRC verdict label of one capture row, kept so it can be refreshed without rebuilding the grid
+     * @param label, the label showing the verdict
+     * @param capture, the capture the row belongs to
+     */
+    private record CrcBadge(Label label, Capture capture) {
+    }
 
     /**
      * One character of one capture, remembering the states that decide how it is coloured
@@ -139,6 +155,7 @@ public class CaptureGridPane extends VBox {
         grid.getChildren().clear();
         columnHeaders.clear();
         columnCells.clear();
+        crcBadges.clear();
         state.clearSelection();
 
         if (state.getCaptures().isEmpty()) {
@@ -155,6 +172,11 @@ public class CaptureGridPane extends VBox {
         cornerHeader.getStyleClass().add("grid-corner-header");
         grid.add(cornerHeader, 1, 0);
 
+        // grid columns: 0 delete, 1 name, 2 CRC verdict, 3 onwards the data.
+        // The name and CRC columns are fixed width so the data always starts at the same place,
+        // however long the capture names happen to be.
+        int firstDataColumn = 3;
+
         // create the header for each data column
         for (int col = 0; col < columnCount; col++) {
             // only every few columns is labelled, otherwise the ruler is unreadable
@@ -165,7 +187,7 @@ public class CaptureGridPane extends VBox {
             if ((col + 1) % charsPerByte == 0)
                 header.getStyleClass().add("byte-end");
             wireColumnSelection(header, col); // set event handler when clicking and dragging column header
-            grid.add(header, col + 2, 0); // starts from the data column
+            grid.add(header, col + firstDataColumn, 0);
 
             columnHeaders.add(header);
             columnCells.add(new ArrayList<>());
@@ -185,6 +207,7 @@ public class CaptureGridPane extends VBox {
 
             boolean isReference = state.isReference(capture);
             grid.add(buildNameCell(capture, isReference), 1, row);
+            grid.add(buildCrcBadge(capture), 2, row);
 
             String display = getDisplayValue(capture.getHexPacket());
             for (int col = 0; col < columnCount; col++) {
@@ -196,7 +219,7 @@ public class CaptureGridPane extends VBox {
                 if ((col + 1) % charsPerByte == 0)
                     cell.getStyleClass().add("byte-end"); // small gap after each complete byte
                 wireColumnSelection(cell, col);
-                grid.add(cell, col + 2, row);
+                grid.add(cell, col + firstDataColumn, row);
                 columnCells.get(col).add(new DataCell(cell, isDiff, !hasValue));
             }
             row++;
@@ -235,6 +258,7 @@ public class CaptureGridPane extends VBox {
         }
 
         applyCellStyles();
+        refreshCrcBadges();
     }
 
     /**
@@ -332,12 +356,68 @@ public class CaptureGridPane extends VBox {
         if (isReference)
             name.getStyleClass().add("is-reference");
 
-        Label size = new Label(capture.getHexPacket().length() + "B");
+        // a long name must not be allowed to push the data columns to the right, so it is clipped
+        // and the full name moves to a tooltip instead
+        name.setMaxWidth(150);
+        name.setTextOverrun(OverrunStyle.ELLIPSIS);
+        name.setTooltip(new Tooltip(capture.getName()));
+
+        Label size = new Label(capture.getHexPacket().length() + " bytes");
         size.getStyleClass().add("capture-size");
 
         HBox nameCell = new HBox(star, name, size);
         nameCell.setAlignment(Pos.CENTER_LEFT);
+        nameCell.setMinWidth(NAME_COLUMN_WIDTH);
+        nameCell.setPrefWidth(NAME_COLUMN_WIDTH);
+        nameCell.setMaxWidth(NAME_COLUMN_WIDTH);
         return nameCell;
+    }
+
+    /**
+     * The CRC verdict of one capture, in its own fixed width grid column so the verdicts line up
+     * with each other instead of following the length of each name
+     */
+    private Node buildCrcBadge(Capture capture) {
+        Label badge = new Label(); // filled in by refreshCrcBadges
+        crcBadges.add(new CrcBadge(badge, capture));
+
+        // the badge keeps its natural size, the container is what holds the fixed slot. Sizing the
+        // label itself would stretch the coloured pill all the way to the first data column.
+        HBox slot = new HBox(badge);
+        slot.setAlignment(Pos.CENTER_LEFT);
+        slot.setMinWidth(CRC_COLUMN_WIDTH);
+        slot.setPrefWidth(CRC_COLUMN_WIDTH);
+        slot.setMaxWidth(CRC_COLUMN_WIDTH);
+        return slot;
+    }
+
+    /**
+     * Show, on every capture row, whether the CRC fields of the viewed message type check out for that packet.
+     * A packet with no CRC field, or too short to hold it, simply shows nothing.
+     */
+    private void refreshCrcBadges() {
+        for (CrcBadge badge : crcBadges) {
+            HexPacket packet = badge.capture().getHexPacket();
+
+            FieldDecoder.CrcCheck check = state.getViewedFields().stream()
+                    .filter(Field::hasCrc)
+                    .map(field -> FieldDecoder.checkCrc(packet, field))
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+
+            Label label = badge.label();
+
+            // the label keeps its slot even with nothing to show, so the data columns never shift
+            if (check == null) {
+                label.setText("");
+                label.getStyleClass().clear();
+                continue;
+            }
+
+            label.setText(check.valid() ? "CRC ✓" : "CRC ✗");
+            label.getStyleClass().setAll("crc-badge", check.valid() ? "crc-valid" : "crc-invalid");
+        }
     }
 
     /**

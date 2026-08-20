@@ -403,6 +403,29 @@
     -fx-padding: 0 14px 0 0;
 }
 
+/* whether the CRC of a packet checks out, shown next to its name */
+.crc-badge {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+    -fx-font-size: 10.5px;
+    -fx-font-weight: bold;
+    -fx-padding: 1px 6px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-width: 1px;
+}
+
+.crc-valid {
+    -fx-text-fill: #6ee7b7;
+    -fx-background-color: #10362c;
+    -fx-border-color: #2b6b57;
+}
+
+.crc-invalid {
+    -fx-text-fill: #ff9d96;
+    -fx-background-color: #3d1f22;
+    -fx-border-color: #7d3b3b;
+}
+
 .grid-corner-header {
     -fx-font-size: 10px;
     -fx-font-weight: bold;
@@ -502,6 +525,52 @@
 
 .button:disabled {
     -fx-opacity: 0.35;
+}
+
+
+/* the decoded value of each field, read off the reference capture.
+   Scoped to the cells so the column header keeps the same font as every other header. */
+.table-view .value-cell {
+    -fx-font-family: "Consolas", "JetBrains Mono", monospace;
+}
+
+
+/* ---------- Decode rules dialog ---------- */
+.rules-dialog {
+    -fx-background-color: -pb-surface;
+}
+
+.rules-dialog > .content {
+    -fx-background-color: -pb-surface;
+}
+
+.rules-dialog > .button-bar > .container {
+    -fx-background-color: -pb-surface;
+}
+
+.rules-dialog .label {
+    -fx-text-fill: -pb-text;
+}
+
+.rules-scroll,
+.rules-scroll > .viewport {
+    -fx-background-color: -pb-surface;
+    -fx-border-color: transparent;
+}
+
+/* one rule already applied to the field */
+.rule-row {
+    -fx-background-color: -pb-surface-2;
+    -fx-background-radius: 7px;
+    -fx-border-color: -pb-border-soft;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+    -fx-padding: 8px 12px;
+}
+
+/* the rule currently loaded into the form below */
+.rule-row-editing {
+    -fx-border-color: -pb-accent;
 }
 
 
